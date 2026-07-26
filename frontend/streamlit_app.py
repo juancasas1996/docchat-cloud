@@ -20,13 +20,19 @@ with st.sidebar:
     except requests.RequestException:
         st.error("API offline")
 
-question = st.text_input("Ask something")
+question = st.text_input("Ask something (e.g. how does the CI/CD of this project work?)")
 if st.button("Send", type="primary") and question:
     try:
-        r = requests.post(
-            f"{API_URL}/api/chat", json={"question": question}, timeout=30
-        )
+        with st.spinner("The agent is thinking (triage → answer → verify)..."):
+            r = requests.post(
+                f"{API_URL}/api/chat", json={"question": question}, timeout=120
+            )
         r.raise_for_status()
-        st.markdown(r.json()["answer"])
+        data = r.json()
+        st.markdown(data["answer"])
+        if data.get("verification"):
+            with st.expander("🔍 Verification report"):
+                st.text(data["verification"])
+                st.caption(f"Model: {data.get('model', '?')}")
     except requests.RequestException as exc:
         st.error(f"Request failed: {exc}")
