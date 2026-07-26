@@ -15,6 +15,7 @@ jobs:
     name: Build & push ${{ matrix.service }}
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         service: [api, frontend]
     steps:
