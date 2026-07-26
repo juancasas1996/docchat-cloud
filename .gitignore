@@ -15,3 +15,10 @@ venv*/
 # IDE
 .vscode/
 .idea/
+
+# Terraform (state stays local and out of git)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log

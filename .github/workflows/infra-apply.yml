@@ -1,0 +1,55 @@
+# Applies infra on push to main (mirror of LegalSifter's service-apply, dev flow)
+name: Infra Apply
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infra/environments/**"
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_VERSION: "1.15.1"
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: "true"
+
+jobs:
+  apply:
+    name: Apply dev
+    runs-on: ubuntu-latest
+    concurrency:
+      group: infra-apply-dev
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/environments/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        run: |
+          echo "## Terraform Plan — dev" >> $GITHUB_STEP_SUMMARY
+          terraform plan -no-color -input=false -out=tfplan | tee -a $GITHUB_STEP_SUMMARY
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
+
+      - name: Output Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## Dev Infra Apply Complete" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\` — **Actor:** @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
