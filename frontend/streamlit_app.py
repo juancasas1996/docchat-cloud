@@ -108,20 +108,35 @@ with cols[2]:
 
 render_divider()
 
-# Optional custom context
-with st.expander("📄 Context — what the agent answers from", expanded=False):
+# Agent mode: verified doc-chat vs ReAct over the MCP calculator tools
+mode = st.radio(
+    "Agent mode",
+    ["📄 Documents (verified answers)", "🧮 Calculator (ReAct + MCP tools)"],
+    horizontal=True,
+    label_visibility="collapsed",
+)
+is_calc = mode.startswith("🧮")
+
+if is_calc:
     st.caption(
-        "By default the agent answers questions about this very project "
-        "(architecture, CI/CD, agent design, roadmap). Paste your own text "
-        "below to chat over it instead — document upload arrives in phase 6."
+        "ReAct agent: the LLM decides when to call the calculator tools, "
+        "discovered live from the remote MCP server. Ask it some math."
     )
-    custom_context = st.text_area(
-        "Custom context",
-        key="custom_context",
-        height=160,
-        placeholder="Paste any text here and ask questions about it...",
-        label_visibility="collapsed",
-    )
+else:
+    # Optional custom context (documents mode only)
+    with st.expander("📄 Context — what the agent answers from", expanded=False):
+        st.caption(
+            "By default the agent answers questions about this very project "
+            "(architecture, CI/CD, agent design, roadmap). Paste your own text "
+            "below to chat over it instead — document upload arrives in phase 6."
+        )
+        custom_context = st.text_area(
+            "Custom context",
+            key="custom_context",
+            height=160,
+            placeholder="Paste any text here and ask questions about it...",
+            label_visibility="collapsed",
+        )
 
 # Chat history
 for msg in st.session_state["chat_messages"]:
@@ -130,6 +145,11 @@ for msg in st.session_state["chat_messages"]:
         if msg.get("verification"):
             with st.expander("🔍 Verification report"):
                 st.text(msg["verification"])
+                st.caption(f"Model: {msg.get('model', '?')}")
+        if msg.get("trace"):
+            with st.expander("🔧 Tool calls (MCP)"):
+                for step in msg["trace"]:
+                    st.code(step, language=None)
                 st.caption(f"Model: {msg.get('model', '?')}")
 
 # Input + agent call
@@ -144,20 +164,30 @@ if question:
 
     with st.chat_message("assistant"):
         try:
-            with st.spinner("Agent thinking: triage → answer → verify..."):
-                payload = {"question": question}
+            if is_calc:
+                spinner_text = "ReAct agent: reason → act (MCP tools) → observe..."
+                endpoint, payload = "/api/react", {"question": question}
+            else:
+                spinner_text = "Agent thinking: triage → answer → verify..."
+                endpoint, payload = "/api/chat", {"question": question}
                 if (st.session_state.get("custom_context") or "").strip():
                     payload["context"] = st.session_state["custom_context"].strip()
-                r = requests.post(f"{API_URL}/api/chat", json=payload, timeout=120)
+            with st.spinner(spinner_text):
+                r = requests.post(f"{API_URL}{endpoint}", json=payload, timeout=120)
             r.raise_for_status()
             data = r.json()
         except requests.RequestException as exc:
-            data = {"answer": f"❌ Request failed: {exc}", "verification": ""}
+            data = {"answer": f"❌ Request failed: {exc}"}
 
         st.markdown(data["answer"])
         if data.get("verification"):
             with st.expander("🔍 Verification report"):
                 st.text(data["verification"])
+                st.caption(f"Model: {data.get('model', '?')}")
+        if data.get("trace"):
+            with st.expander("🔧 Tool calls (MCP)"):
+                for step in data["trace"]:
+                    st.code(step, language=None)
                 st.caption(f"Model: {data.get('model', '?')}")
 
     st.session_state["chat_messages"].append(
@@ -165,6 +195,7 @@ if question:
             "role": "assistant",
             "content": data["answer"],
             "verification": data.get("verification", ""),
+            "trace": data.get("trace", []),
             "model": data.get("model", ""),
         }
     )
