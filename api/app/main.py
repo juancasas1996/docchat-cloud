@@ -5,6 +5,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 
 from .agent import run_agent
+from .react_agent import run_react
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -29,6 +30,32 @@ class ChatResponse(BaseModel):
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok", "agent_ready": bool(os.getenv("NVIDIA_API_KEY"))}
+
+
+class ReactRequest(BaseModel):
+    question: str
+
+
+class ReactResponse(BaseModel):
+    answer: str
+    trace: list[str] = []
+    model: str = ""
+
+
+@app.post("/api/react", response_model=ReactResponse)
+async def react(payload: ReactRequest) -> ReactResponse:
+    if not os.getenv("NVIDIA_API_KEY"):
+        return ReactResponse(
+            answer="The agent has no model credentials yet (NVIDIA_API_KEY is not set)."
+        )
+    try:
+        result = await run_react(payload.question)
+    except Exception:
+        logger.exception("ReAct agent failed")
+        return ReactResponse(
+            answer="The agent hit an error talking to the model or the MCP server. Try again."
+        )
+    return ReactResponse(**result)
 
 
 @app.post("/api/chat", response_model=ChatResponse)
