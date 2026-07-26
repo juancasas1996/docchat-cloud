@@ -32,6 +32,7 @@ graph LR
 | 4 | Secrets in Azure Key Vault via managed identity | ⏳ |
 | 5 | PostgreSQL (metadata, history, agent checkpoints) | ⏳ |
 | 6 | Agentic RAG pipeline (retriever + research/verify agents) | ⏳ |
+| ★ | Remote MCP server (calculator) on Container Apps | ✅ |
 
 ## Infrastructure
 
@@ -59,11 +60,29 @@ docker compose up --build
 ## Project layout
 
 ```text
-├── api/               # FastAPI backend
+├── api/               # FastAPI backend (LangGraph agent)
 │   ├── app/main.py
+│   ├── app/agent.py
 │   └── Dockerfile
 ├── frontend/          # Streamlit UI
 │   ├── streamlit_app.py
 │   └── Dockerfile
+├── mcp/               # Remote MCP server (calculator tools)
+│   ├── server.py
+│   ├── example_client.py
+│   └── Dockerfile
+├── infra/             # Terraform (bootstrap + environments/dev)
 └── docker-compose.yml
 ```
+
+## MCP server
+
+A minimal remote MCP server (Streamable HTTP) exposing calculator tools —
+connect any MCP client to it:
+
+```bash
+claude mcp add calculator --transport http <mcp-endpoint>/mcp
+```
+
+Locally the endpoint is `http://localhost:8080/mcp`; the deployed endpoint is
+the `mcp_endpoint` Terraform output.

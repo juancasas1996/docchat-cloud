@@ -55,7 +55,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, frontend]
+        service: [api, frontend, mcp]
     steps:
       - uses: actions/checkout@v4
 
@@ -106,3 +106,5 @@ jobs:
             --image ghcr.io/${{ github.repository }}-api:${{ github.sha }} $AGENT_ENV
           az containerapp update -n docchat-frontend -g AgenticRAG \
             --image ghcr.io/${{ github.repository }}-frontend:${{ github.sha }}
+          az containerapp update -n docchat-mcp -g AgenticRAG \
+            --image ghcr.io/${{ github.repository }}-mcp:${{ github.sha }}
