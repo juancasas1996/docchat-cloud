@@ -70,7 +70,9 @@ def render_divider() -> None:
 @st.cache_data(ttl=30, show_spinner=False)
 def api_health() -> dict:
     try:
-        r = requests.get(f"{API_URL}/health", timeout=8)
+        # Generous timeout: with scale-to-zero the API may need a cold start
+        # (~10-20s) before it can answer the probe.
+        r = requests.get(f"{API_URL}/health", timeout=45)
         r.raise_for_status()
         return {"online": True, **r.json()}
     except requests.RequestException:
@@ -92,6 +94,9 @@ if "chat_messages" not in st.session_state:
 cols = st.columns(3)
 with cols[0]:
     st.metric("API", "🟢 Online" if health["online"] else "🔴 Offline")
+    if not health["online"] and st.button("🔄 Retry", key="retry_health"):
+        api_health.clear()
+        st.rerun()
 with cols[1]:
     st.metric(
         "Agent",
@@ -128,9 +133,9 @@ for msg in st.session_state["chat_messages"]:
                 st.caption(f"Model: {msg.get('model', '?')}")
 
 # Input + agent call
+# Never disabled: asking a question is itself what wakes a scaled-to-zero API.
 question = st.chat_input(
-    "Ask something — e.g. how does the CI/CD of this project work?",
-    disabled=not health["online"],
+    "Ask something — e.g. how does the CI/CD of this project work?"
 )
 if question:
     st.session_state["chat_messages"].append({"role": "user", "content": question})
