@@ -19,6 +19,19 @@ variable "github_repository" {
   default     = "juancasas1996/docchat-cloud"
 }
 
+# GitHub embeds immutable ids in the OIDC subject claim
+# (repo:owner@ownerId/name@repoId:...) so deleted-and-recreated repos or
+# renamed accounts can never inherit the trust.
+variable "github_owner_id" {
+  type    = number
+  default = 67381908
+}
+
+variable "github_repo_id" {
+  type    = number
+  default = 1312457834
+}
+
 variable "alert_email" {
   type    = string
   default = "juancasas1996@hotmail.com"

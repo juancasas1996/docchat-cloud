@@ -1,5 +1,16 @@
 data "azurerm_client_config" "current" {}
 
+locals {
+  # Subject claim as GitHub presents it: names + immutable ids.
+  oidc_repo_subject = format(
+    "%s@%d/%s@%d",
+    split("/", var.github_repository)[0],
+    var.github_owner_id,
+    split("/", var.github_repository)[1],
+    var.github_repo_id,
+  )
+}
+
 resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.location
@@ -24,7 +35,7 @@ resource "azuread_application_federated_identity_credential" "main_branch" {
   display_name   = "github-docchat-cloud-main"
   audiences      = ["api://AzureADTokenExchange"]
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_repository}:ref:refs/heads/main"
+  subject        = "repo:${local.oidc_repo_subject}:ref:refs/heads/main"
 }
 
 # Trust pull requests (terraform plan on PRs).
@@ -33,7 +44,7 @@ resource "azuread_application_federated_identity_credential" "pull_request" {
   display_name   = "github-docchat-cloud-pr"
   audiences      = ["api://AzureADTokenExchange"]
   issuer         = "https://token.actions.githubusercontent.com"
-  subject        = "repo:${var.github_repository}:pull_request"
+  subject        = "repo:${local.oidc_repo_subject}:pull_request"
 }
 
 # CI can only touch the project resource group — nothing else in the account.
