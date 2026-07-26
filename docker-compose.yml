@@ -6,6 +6,11 @@ services:
     environment:
       NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
 
+  mcp:
+    build: ./mcp
+    ports:
+      - "8080:8080"
+
   frontend:
     build: ./frontend
     ports:

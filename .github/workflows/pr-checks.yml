@@ -111,7 +111,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [api, frontend]
+        service: [api, frontend, mcp]
     steps:
       - uses: actions/checkout@v4
 
