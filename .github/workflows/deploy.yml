@@ -1,4 +1,7 @@
-name: CI/CD
+# Merge pipeline: runs on every merge to main, in strict order —
+# 1) terraform apply (infra), 2) build images, 3) deploy apps.
+# main is a protected branch, so the only way to reach this is through a PR.
+name: Deploy
 
 on:
   push:
@@ -8,9 +11,44 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write # required for OIDC login to Azure
+  id-token: write # OIDC token for Azure
+
+env:
+  TF_VERSION: "1.15.1"
+  ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ARM_USE_OIDC: "true"
 
 jobs:
+  infra:
+    name: Terraform Apply dev
+    runs-on: ubuntu-latest
+    concurrency:
+      group: infra-apply-dev
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: infra/environments/dev
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform Init
+        run: terraform init -input=false
+
+      - name: Terraform Plan
+        run: |
+          echo "## Terraform Plan — dev" >> $GITHUB_STEP_SUMMARY
+          terraform plan -no-color -input=false -out=tfplan | tee -a $GITHUB_STEP_SUMMARY
+
+      - name: Terraform Apply
+        run: terraform apply -input=false tfplan
+
   build-push:
     name: Build & push ${{ matrix.service }}
     runs-on: ubuntu-latest
@@ -38,10 +76,9 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
   deploy:
-    name: Deploy to Azure Container Apps
-    needs: build-push
-    # Skips until the Azure OIDC variables are configured (set by Terraform outputs)
-    if: vars.AZURE_CLIENT_ID != ''
+    name: Deploy apps
+    # Infra must be applied BEFORE the apps that run on it are updated.
+    needs: [infra, build-push]
     runs-on: ubuntu-latest
     steps:
       - name: Azure login (OIDC, no stored secrets)
