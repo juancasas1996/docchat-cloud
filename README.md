@@ -1,5 +1,8 @@
 # DocChat Cloud 💬
 
+[![Deploy](https://github.com/juancasas1996/docchat-cloud/actions/workflows/deploy.yml/badge.svg)](https://github.com/juancasas1996/docchat-cloud/actions/workflows/deploy.yml)
+[![PR Checks](https://github.com/juancasas1996/docchat-cloud/actions/workflows/pr-checks.yml/badge.svg)](https://github.com/juancasas1996/docchat-cloud/actions/workflows/pr-checks.yml)
+
 Agentic RAG chat over documents — built incrementally and deployed to **Azure**
 with **GitHub Actions CI/CD**.
 
