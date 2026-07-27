@@ -91,15 +91,16 @@ jobs:
       - name: Update container apps to this commit's images
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           az config set extension.use_dynamic_install=yes_without_prompt
 
-          # Model credentials as a container-app secret (interim until Key Vault).
+          # Model credentials as container-app secrets (interim until Key Vault).
           AGENT_ENV=""
-          if [ -n "$NVIDIA_API_KEY" ]; then
+          if [ -n "$NVIDIA_API_KEY" ] && [ -n "$OPENAI_API_KEY" ]; then
             az containerapp secret set -n docchat-api -g AgenticRAG \
-              --secrets nvidia-api-key="$NVIDIA_API_KEY" -o none
-            AGENT_ENV="--set-env-vars NVIDIA_API_KEY=secretref:nvidia-api-key"
+              --secrets nvidia-api-key="$NVIDIA_API_KEY" openai-api-key="$OPENAI_API_KEY" -o none
+            AGENT_ENV="--set-env-vars NVIDIA_API_KEY=secretref:nvidia-api-key OPENAI_API_KEY=secretref:openai-api-key"
           fi
 
           az containerapp update -n docchat-api -g AgenticRAG \
