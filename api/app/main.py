@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -6,6 +7,7 @@ from pydantic import BaseModel
 
 from . import react_agent
 from .agent import run_agent
+from .rag_agent import run_rag
 from .react_agent import run_react
 
 logger = logging.getLogger("uvicorn.error")
@@ -55,6 +57,22 @@ async def react(payload: ReactRequest) -> ReactResponse:
         logger.exception("ReAct agent failed")
         return ReactResponse(
             answer="The agent hit an error talking to the model or the MCP server. Try again."
+        )
+    return ReactResponse(**result)
+
+
+@app.post("/api/rag", response_model=ReactResponse)
+async def rag(payload: ReactRequest) -> ReactResponse:
+    if not react_agent.LLM_API_KEY:
+        return ReactResponse(
+            answer="The agent has no model credentials yet (set OPENAI_API_KEY or LLM_API_KEY)."
+        )
+    try:
+        result = await asyncio.to_thread(run_rag, payload.question)
+    except Exception:
+        logger.exception("RAG workflow failed")
+        return ReactResponse(
+            answer="The agent hit an error talking to the model. Try again."
         )
     return ReactResponse(**result)
 

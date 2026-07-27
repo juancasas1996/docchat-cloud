@@ -111,16 +111,27 @@ render_divider()
 # Agent mode: verified doc-chat vs ReAct over the MCP calculator tools
 mode = st.radio(
     "Agent mode",
-    ["📄 Documents (verified answers)", "🧮 Calculator (ReAct + MCP tools)"],
+    [
+        "📄 Documents (verified answers)",
+        "🧮 Calculator (ReAct + MCP tools)",
+        "📜 RAG (simulated agentic workflow)",
+    ],
     horizontal=True,
     label_visibility="collapsed",
 )
 is_calc = mode.startswith("🧮")
+is_rag = mode.startswith("📜")
 
 if is_calc:
     st.caption(
         "ReAct agent: the LLM decides when to call the calculator tools, "
         "discovered live from the remote MCP server. Ask it some math."
+    )
+elif is_rag:
+    st.caption(
+        "Agentic workflow with SIMULATED retrieval: router → investigator "
+        "(judges bad results and rewrites the query) → drafter ⇄ critic. "
+        "Try: '¿Qué dice la ley sobre manejar borracho?'"
     )
 else:
     # Optional custom context (documents mode only)
@@ -147,7 +158,7 @@ for msg in st.session_state["chat_messages"]:
                 st.text(msg["verification"])
                 st.caption(f"Model: {msg.get('model', '?')}")
         if msg.get("trace"):
-            with st.expander("🔧 Tool calls (MCP)"):
+            with st.expander("🎬 Agent trace"):
                 for step in msg["trace"]:
                     st.code(step, language=None)
                 st.caption(f"Model: {msg.get('model', '?')}")
@@ -167,6 +178,9 @@ if question:
             if is_calc:
                 spinner_text = "ReAct agent: reason → act (MCP tools) → observe..."
                 endpoint, payload = "/api/react", {"question": question}
+            elif is_rag:
+                spinner_text = "Workflow: router → investigator → drafter ⇄ critic..."
+                endpoint, payload = "/api/rag", {"question": question}
             else:
                 spinner_text = "Agent thinking: triage → answer → verify..."
                 endpoint, payload = "/api/chat", {"question": question}
@@ -185,7 +199,7 @@ if question:
                 st.text(data["verification"])
                 st.caption(f"Model: {data.get('model', '?')}")
         if data.get("trace"):
-            with st.expander("🔧 Tool calls (MCP)"):
+            with st.expander("🎬 Agent trace"):
                 for step in data["trace"]:
                     st.code(step, language=None)
                 st.caption(f"Model: {data.get('model', '?')}")
