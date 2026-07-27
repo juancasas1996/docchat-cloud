@@ -14,10 +14,18 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import create_react_agent
 
-NVIDIA_BASE_URL = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-# mistral-nemotron: measured <1s on the free tier AND handles parallel tool
-# calls end-to-end, unlike llama-3.1 whose template rejects them.
-REACT_MODEL = os.getenv("NVIDIA_REACT_MODEL", "mistralai/mistral-nemotron")
+# Provider-agnostic LLM config: any OpenAI-compatible endpoint works.
+# Default: OpenAI gpt-4.1-mini — correct multilingual tool calling with clean
+# traces for ~$0.002/question. Measured rejects: 4.1-nano answers wrong
+# (bad parallel decomposition), the free NVIDIA models each failed one of:
+# Spanish tool calls, parallel calls, or availability.
+# Free alternative: LLM_BASE_URL=https://integrate.api.nvidia.com/v1 with
+# LLM_MODEL=deepseek-ai/deepseek-v4-flash and the NVIDIA key.
+LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
+REACT_MODEL = os.getenv("LLM_MODEL", "gpt-4.1-mini")
+LLM_API_KEY = (
+    os.getenv("LLM_API_KEY") or os.getenv("OPENAI_API_KEY") or os.getenv("NVIDIA_API_KEY") or ""
+)
 # Safety valve for models that only accept one tool call per turn (llama-3.1).
 SINGLE_TOOL_CALL = os.getenv("REACT_SINGLE_TOOL_CALL", "false").lower() == "true"
 MCP_URL = os.getenv(
@@ -55,8 +63,8 @@ async def _get_agent():
         )
         tools = await client.get_tools()
         llm = ChatOpenAI(
-            base_url=NVIDIA_BASE_URL,
-            api_key=os.environ["NVIDIA_API_KEY"],
+            base_url=LLM_BASE_URL,
+            api_key=LLM_API_KEY,
             model=REACT_MODEL,
             temperature=0,
         )

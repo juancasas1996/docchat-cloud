@@ -4,6 +4,7 @@ import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from . import react_agent
 from .agent import run_agent
 from .react_agent import run_react
 
@@ -44,9 +45,9 @@ class ReactResponse(BaseModel):
 
 @app.post("/api/react", response_model=ReactResponse)
 async def react(payload: ReactRequest) -> ReactResponse:
-    if not os.getenv("NVIDIA_API_KEY"):
+    if not react_agent.LLM_API_KEY:
         return ReactResponse(
-            answer="The agent has no model credentials yet (NVIDIA_API_KEY is not set)."
+            answer="The agent has no model credentials yet (set OPENAI_API_KEY or LLM_API_KEY)."
         )
     try:
         result = await run_react(payload.question)
